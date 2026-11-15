@@ -60,3 +60,47 @@ char** tokenize(char* cmdline) {
     arglist[argnum] = NULL;
     return arglist;
 }
+
+int handle_builtin(char** arglist) {
+    if (arglist == NULL || arglist[0] == NULL) {
+        return 0;
+    }
+
+    // exit: terminates the shell gracefully
+    if (strcmp(arglist[0], "exit") == 0) {
+        exit(0);
+    }
+
+    // cd <directory>: changes current directory
+    if (strcmp(arglist[0], "cd") == 0) {
+        if (arglist[1] == NULL) {
+            char* home = getenv("HOME");
+            if (home != NULL) {
+                chdir(home);
+            }
+        } else {
+            if (chdir(arglist[1]) != 0) {
+                perror("cd");
+            }
+        }
+        return 1;
+    }
+
+    // help: displays list of built-in commands
+    if (strcmp(arglist[0], "help") == 0) {
+        printf("Available built-in commands:\n");
+        printf("  cd <path> : Change directory\n");
+        printf("  exit      : Exit the shell\n");
+        printf("  help      : Show this help message\n");
+        printf("  jobs      : List background jobs\n");
+        return 1;
+    }
+
+    // jobs: placeholder for job control
+    if (strcmp(arglist[0], "jobs") == 0) {
+        printf("Job control not yet implemented.\n");
+        return 1;
+    }
+
+    return 0;
+}
