@@ -61,6 +61,41 @@ char** tokenize(char* cmdline) {
     return arglist;
 }
 
+// History storage
+static char* history[HISTORY_SIZE];
+static int history_count = 0;
+
+void add_to_history(char* cmd) {
+    if (cmd == NULL || cmd[0] == '\0') {
+        return;
+    }
+
+    if (history_count < HISTORY_SIZE) {
+        history[history_count] = strdup(cmd);
+        history_count++;
+    } else {
+        // History full: remove oldest, shift left, add newest at end
+        free(history[0]);
+        for (int i = 1; i < HISTORY_SIZE; i++) {
+            history[i - 1] = history[i];
+        }
+        history[HISTORY_SIZE - 1] = strdup(cmd);
+    }
+}
+
+void print_history(void) {
+    for (int i = 0; i < history_count; i++) {
+        printf("%4d  %s\n", i + 1, history[i]);
+    }
+}
+
+char* get_history(int n) {
+    if (n < 1 || n > history_count) {
+        return NULL;
+    }
+    return history[n - 1];
+}
+
 int handle_builtin(char** arglist) {
     if (arglist == NULL || arglist[0] == NULL) {
         return 0;
@@ -86,12 +121,19 @@ int handle_builtin(char** arglist) {
         return 1;
     }
 
+    // history: displays command history
+    if (strcmp(arglist[0], "history") == 0) {
+        print_history();
+        return 1;
+    }
+
     // help: displays list of built-in commands
     if (strcmp(arglist[0], "help") == 0) {
         printf("Available built-in commands:\n");
         printf("  cd <path> : Change directory\n");
         printf("  exit      : Exit the shell\n");
         printf("  help      : Show this help message\n");
+        printf("  history   : Show command history\n");
         printf("  jobs      : List background jobs\n");
         return 1;
     }
