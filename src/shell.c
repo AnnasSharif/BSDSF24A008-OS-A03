@@ -42,9 +42,25 @@ char** tokenize(char* cmdline) {
         if (*cp == '\0') break; // Line was only whitespace
 
         start = cp;
-        len = 1;
-        while (*++cp != '\0' && !(*cp == ' ' || *cp == '\t')) {
-            len++;
+        // Recognize special operators: <, >, and |
+        if (*cp == '<' || *cp == '>' || *cp == '|') {
+            len = 1;
+            cp++;
+        } else if (*cp == '"' || *cp == '\'') {
+            char quote = *cp++;
+            start = cp;
+            len = 0;
+            while (*cp != '\0' && *cp != quote) {
+                len++;
+                cp++;
+            }
+            if (*cp == quote) cp++; // Skip closing quote
+        } else {
+            len = 0;
+            while (*cp != '\0' && !(*cp == ' ' || *cp == '\t' || *cp == '<' || *cp == '>' || *cp == '|')) {
+                len++;
+                cp++;
+            }
         }
         strncpy(arglist[argnum], start, len);
         arglist[argnum][len] = '\0';
