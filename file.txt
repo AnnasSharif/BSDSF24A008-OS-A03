@@ -1,8 +1,0 @@
-total 0
--rwxrwxrwx 1 user user  502 Nov 16 18:48 Makefile
--rwxrwxrwx 1 user user   20 Nov 16 02:16 README.md
-drwxrwxrwx 1 user user 4096 Nov 17 00:11 bin
--rwxrwxrwx 1 user user    0 Nov 17 00:12 file.txt
-drwxrwxrwx 1 user user 4096 Nov 16 18:48 include
-drwxrwxrwx 1 user user 4096 Nov 17 00:11 obj
-drwxrwxrwx 1 user user 4096 Nov 16 18:48 src

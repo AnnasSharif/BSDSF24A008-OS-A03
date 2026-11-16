@@ -158,6 +158,110 @@ void print_jobs(void) {
     }
 }
 
+// Shell Variables Linked List
+typedef struct Variable {
+    char name[MAX_LEN];
+    char value[MAX_LEN];
+    struct Variable* next;
+} Variable;
+
+static Variable* var_list = NULL;
+
+int set_variable(const char* name, const char* value) {
+    Variable* curr = var_list;
+    while (curr != NULL) {
+        if (strcmp(curr->name, name) == 0) {
+            strncpy(curr->value, value, MAX_LEN - 1);
+            curr->value[MAX_LEN - 1] = '\0';
+            return 0;
+        }
+        curr = curr->next;
+    }
+
+    Variable* new_var = (Variable*)malloc(sizeof(Variable));
+    if (new_var == NULL) {
+        return -1;
+    }
+    strncpy(new_var->name, name, MAX_LEN - 1);
+    new_var->name[MAX_LEN - 1] = '\0';
+    strncpy(new_var->value, value, MAX_LEN - 1);
+    new_var->value[MAX_LEN - 1] = '\0';
+    new_var->next = var_list;
+    var_list = new_var;
+    return 0;
+}
+
+char* get_variable(const char* name) {
+    Variable* curr = var_list;
+    while (curr != NULL) {
+        if (strcmp(curr->name, name) == 0) {
+            return curr->value;
+        }
+        curr = curr->next;
+    }
+    return getenv(name);
+}
+
+void print_variables(void) {
+    Variable* curr = var_list;
+    while (curr != NULL) {
+        printf("%s=%s\n", curr->name, curr->value);
+        curr = curr->next;
+    }
+}
+
+int handle_assignment(const char* str) {
+    const char* eq = strchr(str, '=');
+    if (eq == NULL || eq == str) {
+        return 0;
+    }
+
+    // Variable name must contain only alphanumeric characters or underscore
+    for (const char* p = str; p < eq; p++) {
+        if (!isalnum((unsigned char)*p) && *p != '_') {
+            return 0;
+        }
+    }
+
+    int name_len = eq - str;
+    char name[MAX_LEN];
+    strncpy(name, str, name_len);
+    name[name_len] = '\0';
+
+    const char* val_start = eq + 1;
+    char val[MAX_LEN];
+    int val_len = strlen(val_start);
+
+    // Strip surrounding quotes if present (e.g. MESSAGE="Hello, World!")
+    if (val_len >= 2 && ((val_start[0] == '"' && val_start[val_len - 1] == '"') ||
+                         (val_start[0] == '\'' && val_start[val_len - 1] == '\''))) {
+        strncpy(val, val_start + 1, val_len - 2);
+        val[val_len - 2] = '\0';
+    } else {
+        strncpy(val, val_start, MAX_LEN - 1);
+        val[MAX_LEN - 1] = '\0';
+    }
+
+    set_variable(name, val);
+    return 1;
+}
+
+void expand_variables(char** arglist) {
+    if (arglist == NULL) return;
+
+    for (int i = 0; arglist[i] != NULL; i++) {
+        if (arglist[i][0] == '$') {
+            char* var_name = &arglist[i][1];
+            char* var_val = get_variable(var_name);
+            if (var_val == NULL) {
+                var_val = "";
+            }
+            free(arglist[i]);
+            arglist[i] = strdup(var_val);
+        }
+    }
+}
+
 int handle_builtin(char** arglist) {
     if (arglist == NULL || arglist[0] == NULL) {
         return 0;
@@ -197,12 +301,19 @@ int handle_builtin(char** arglist) {
         printf("  help      : Show this help message\n");
         printf("  history   : Show command history\n");
         printf("  jobs      : List background jobs\n");
+        printf("  set       : List defined shell variables\n");
         return 1;
     }
 
     // jobs: lists running background jobs
     if (strcmp(arglist[0], "jobs") == 0) {
         print_jobs();
+        return 1;
+    }
+
+    // set: lists defined shell variables
+    if (strcmp(arglist[0], "set") == 0) {
+        print_variables();
         return 1;
     }
 
@@ -216,6 +327,7 @@ static char* builtin_names[] = {
     "help",
     "history",
     "jobs",
+    "set",
     NULL
 };
 
@@ -265,6 +377,11 @@ int run_single_command(char* cmd) {
         return 0;
     }
 
+    // Check for variable assignment before tokenizing (e.g. MSG=hello or MESSAGE="Hello, World!")
+    if (handle_assignment(cmd)) {
+        return 0;
+    }
+
     char job_name[MAX_LEN];
     strncpy(job_name, cmd, MAX_LEN - 1);
     job_name[MAX_LEN - 1] = '\0';
@@ -273,6 +390,16 @@ int run_single_command(char* cmd) {
     if (arglist == NULL) {
         return 0;
     }
+
+    // Check if token was an assignment
+    if (arglist[1] == NULL && handle_assignment(arglist[0])) {
+        for (int i = 0; arglist[i] != NULL; i++) free(arglist[i]);
+        free(arglist);
+        return 0;
+    }
+
+    // Pre-execution variable expansion step (replaces $VAR with its value)
+    expand_variables(arglist);
 
     int is_bg = 0;
     int last = 0;
