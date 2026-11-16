@@ -42,8 +42,8 @@ char** tokenize(char* cmdline) {
         if (*cp == '\0') break; // Line was only whitespace
 
         start = cp;
-        // Recognize special operators: <, >, and |
-        if (*cp == '<' || *cp == '>' || *cp == '|') {
+        // Recognize special operators: <, >, |, and &
+        if (*cp == '<' || *cp == '>' || *cp == '|' || *cp == '&') {
             len = 1;
             cp++;
         } else if (*cp == '"' || *cp == '\'') {
@@ -57,7 +57,7 @@ char** tokenize(char* cmdline) {
             if (*cp == quote) cp++; // Skip closing quote
         } else {
             len = 0;
-            while (*cp != '\0' && !(*cp == ' ' || *cp == '\t' || *cp == '<' || *cp == '>' || *cp == '|')) {
+            while (*cp != '\0' && !(*cp == ' ' || *cp == '\t' || *cp == '<' || *cp == '>' || *cp == '|' || *cp == '&')) {
                 len++;
                 cp++;
             }
@@ -112,6 +112,52 @@ char* get_history(int n) {
     return history[n - 1];
 }
 
+// Background jobs management
+typedef struct {
+    pid_t pid;
+    char cmd[MAX_LEN];
+} Job;
+
+static Job bg_jobs[MAX_JOBS];
+static int job_count = 0;
+
+void add_job(pid_t pid, char* cmd) {
+    if (job_count < MAX_JOBS) {
+        bg_jobs[job_count].pid = pid;
+        strncpy(bg_jobs[job_count].cmd, cmd, MAX_LEN - 1);
+        bg_jobs[job_count].cmd[MAX_LEN - 1] = '\0';
+        printf("[%d] %d\n", job_count + 1, pid);
+        job_count++;
+    }
+}
+
+void remove_job(pid_t pid) {
+    for (int i = 0; i < job_count; i++) {
+        if (bg_jobs[i].pid == pid) {
+            for (int j = i; j < job_count - 1; j++) {
+                bg_jobs[j] = bg_jobs[j + 1];
+            }
+            job_count--;
+            break;
+        }
+    }
+}
+
+void check_zombies(void) {
+    int status;
+    pid_t pid;
+    while ((pid = waitpid(-1, &status, WNOHANG)) > 0) {
+        remove_job(pid);
+    }
+}
+
+void print_jobs(void) {
+    check_zombies();
+    for (int i = 0; i < job_count; i++) {
+        printf("[%d] %d %s\n", i + 1, bg_jobs[i].pid, bg_jobs[i].cmd);
+    }
+}
+
 int handle_builtin(char** arglist) {
     if (arglist == NULL || arglist[0] == NULL) {
         return 0;
@@ -154,9 +200,9 @@ int handle_builtin(char** arglist) {
         return 1;
     }
 
-    // jobs: placeholder for job control
+    // jobs: lists running background jobs
     if (strcmp(arglist[0], "jobs") == 0) {
-        printf("Job control not yet implemented.\n");
+        print_jobs();
         return 1;
     }
 

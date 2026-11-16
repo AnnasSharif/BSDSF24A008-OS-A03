@@ -56,7 +56,7 @@ static void execute_child_with_redirection(char* arglist[]) {
 }
 
 // Function to handle pipes (|)
-int execute_pipe(char* left_cmd[], char* right_cmd[]) {
+int execute_pipe(char* left_cmd[], char* right_cmd[], int is_bg, char* cmd_str) {
     int fd[2];
     if (pipe(fd) == -1) {
         perror("pipe failed");
@@ -95,14 +95,18 @@ int execute_pipe(char* left_cmd[], char* right_cmd[]) {
     close(fd[0]);
     close(fd[1]);
 
-    // Wait for both children to complete
-    int status;
-    waitpid(pid1, &status, 0);
-    waitpid(pid2, &status, 0);
+    if (is_bg) {
+        add_job(pid2, cmd_str);
+    } else {
+        // Wait for both children to complete
+        int status;
+        waitpid(pid1, &status, 0);
+        waitpid(pid2, &status, 0);
+    }
     return 0;
 }
 
-int execute(char* arglist[]) {
+int execute(char* arglist[], int is_bg, char* cmd_str) {
     // 1. Check if pipe (|) is present
     for (int i = 0; arglist[i] != NULL; i++) {
         if (strcmp(arglist[i], "|") == 0) {
@@ -120,7 +124,7 @@ int execute(char* arglist[]) {
             }
             right_cmd[k] = NULL;
 
-            return execute_pipe(left_cmd, right_cmd);
+            return execute_pipe(left_cmd, right_cmd, is_bg, cmd_str);
         }
     }
 
@@ -136,7 +140,11 @@ int execute(char* arglist[]) {
             execute_child_with_redirection(arglist);
             break;
         default:
-            waitpid(cpid, &status, 0);
+            if (is_bg) {
+                add_job(cpid, cmd_str);
+            } else {
+                waitpid(cpid, &status, 0);
+            }
             return 0;
     }
     return 0;
