@@ -37,6 +37,13 @@ int main() {
         add_history(cmdline);
         add_to_history(cmdline);
 
+        // Check for if-then-else-fi statement
+        if (strncmp(cmdline, "if ", 3) == 0 || strcmp(cmdline, "if") == 0) {
+            handle_if_block(cmdline);
+            free(cmdline);
+            continue;
+        }
+
         // Split multiple commands separated by semicolon (;)
         char* saveptr;
         char* subcmd = strtok_r(cmdline, ";", &saveptr);
@@ -46,35 +53,7 @@ int main() {
             while (*subcmd == ' ' || *subcmd == '\t') subcmd++;
 
             if (*subcmd != '\0') {
-                char job_name[MAX_LEN];
-                strncpy(job_name, subcmd, MAX_LEN - 1);
-                job_name[MAX_LEN - 1] = '\0';
-
-                char** arglist = tokenize(subcmd);
-                if (arglist != NULL) {
-                    // Check for background execution (&)
-                    int is_bg = 0;
-                    int last = 0;
-                    while (arglist[last] != NULL) last++;
-
-                    if (last > 0 && strcmp(arglist[last - 1], "&") == 0) {
-                        is_bg = 1;
-                        free(arglist[last - 1]);
-                        arglist[last - 1] = NULL;
-                    }
-
-                    if (arglist[0] != NULL) {
-                        if (handle_builtin(arglist) == 0) {
-                            execute(arglist, is_bg, job_name);
-                        }
-                    }
-
-                    // Free memory allocated by tokenize()
-                    for (int i = 0; arglist[i] != NULL; i++) {
-                        free(arglist[i]);
-                    }
-                    free(arglist);
-                }
+                run_single_command(subcmd);
             }
 
             subcmd = strtok_r(NULL, ";", &saveptr);

@@ -97,13 +97,17 @@ int execute_pipe(char* left_cmd[], char* right_cmd[], int is_bg, char* cmd_str) 
 
     if (is_bg) {
         add_job(pid2, cmd_str);
+        return 0;
     } else {
         // Wait for both children to complete
-        int status;
-        waitpid(pid1, &status, 0);
-        waitpid(pid2, &status, 0);
+        int status1, status2;
+        waitpid(pid1, &status1, 0);
+        waitpid(pid2, &status2, 0);
+        if (WIFEXITED(status2)) {
+            return WEXITSTATUS(status2);
+        }
+        return -1;
     }
-    return 0;
 }
 
 int execute(char* arglist[], int is_bg, char* cmd_str) {
@@ -142,10 +146,14 @@ int execute(char* arglist[], int is_bg, char* cmd_str) {
         default:
             if (is_bg) {
                 add_job(cpid, cmd_str);
+                return 0;
             } else {
                 waitpid(cpid, &status, 0);
+                if (WIFEXITED(status)) {
+                    return WEXITSTATUS(status);
+                }
+                return -1;
             }
-            return 0;
     }
     return 0;
 }

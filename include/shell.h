@@ -32,5 +32,7 @@ void add_job(pid_t pid, char* cmd);
 void remove_job(pid_t pid);
 void check_zombies(void);
 void print_jobs(void);
+int run_single_command(char* cmd);
+void handle_if_block(char* cmdline);
 
 #endif // SHELL_H

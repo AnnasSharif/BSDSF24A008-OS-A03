@@ -259,3 +259,117 @@ void init_readline(void) {
     rl_bind_key('\t', rl_complete);
     rl_attempted_completion_function = shell_completion;
 }
+
+int run_single_command(char* cmd) {
+    if (cmd == NULL || cmd[0] == '\0') {
+        return 0;
+    }
+
+    char job_name[MAX_LEN];
+    strncpy(job_name, cmd, MAX_LEN - 1);
+    job_name[MAX_LEN - 1] = '\0';
+
+    char** arglist = tokenize(cmd);
+    if (arglist == NULL) {
+        return 0;
+    }
+
+    int is_bg = 0;
+    int last = 0;
+    while (arglist[last] != NULL) last++;
+
+    if (last > 0 && strcmp(arglist[last - 1], "&") == 0) {
+        is_bg = 1;
+        free(arglist[last - 1]);
+        arglist[last - 1] = NULL;
+    }
+
+    int status = 0;
+    if (arglist[0] != NULL) {
+        if (handle_builtin(arglist) != 0) {
+            status = 0; // Built-in commands execute successfully
+        } else {
+            status = execute(arglist, is_bg, job_name);
+        }
+    }
+
+    for (int i = 0; arglist[i] != NULL; i++) {
+        free(arglist[i]);
+    }
+    free(arglist);
+    return status;
+}
+
+void handle_if_block(char* cmdline) {
+    // 1. Extract condition command after "if"
+    char* condition_cmd = cmdline + 2;
+    while (*condition_cmd == ' ' || *condition_cmd == '\t') {
+        condition_cmd++;
+    }
+
+    char* then_cmds[20];
+    int then_count = 0;
+    char* else_cmds[20];
+    int else_count = 0;
+
+    int section = 0; // 0 = before then, 1 = in then block, 2 = in else block
+    char* line;
+
+    // 2. Read multi-line block until "fi"
+    while ((line = readline("> ")) != NULL) {
+        char* trimmed = line;
+        while (*trimmed == ' ' || *trimmed == '\t') trimmed++;
+
+        int len = strlen(trimmed);
+        while (len > 0 && (trimmed[len - 1] == ' ' || trimmed[len - 1] == '\t' || trimmed[len - 1] == '\n')) {
+            trimmed[len - 1] = '\0';
+            len--;
+        }
+
+        if (strcmp(trimmed, "then") == 0) {
+            section = 1;
+            free(line);
+            continue;
+        } else if (strcmp(trimmed, "else") == 0) {
+            section = 2;
+            free(line);
+            continue;
+        } else if (strcmp(trimmed, "fi") == 0) {
+            free(line);
+            break; // Finished reading block
+        }
+
+        if (len > 0) {
+            if (section == 1 && then_count < 20) {
+                then_cmds[then_count++] = strdup(trimmed);
+            } else if (section == 2 && else_count < 20) {
+                else_cmds[else_count++] = strdup(trimmed);
+            }
+        }
+        free(line);
+    }
+
+    // 3. Execute condition command and check exit code
+    int exit_code = run_single_command(condition_cmd);
+
+    // 4. Execute corresponding block
+    if (exit_code == 0) {
+        // Condition succeeded (status 0): execute then block
+        for (int i = 0; i < then_count; i++) {
+            run_single_command(then_cmds[i]);
+        }
+    } else {
+        // Condition failed (status non-zero): execute else block (if any)
+        for (int i = 0; i < else_count; i++) {
+            run_single_command(else_cmds[i]);
+        }
+    }
+
+    // 5. Free stored lines
+    for (int i = 0; i < then_count; i++) {
+        free(then_cmds[i]);
+    }
+    for (int i = 0; i < else_count; i++) {
+        free(else_cmds[i]);
+    }
+}
