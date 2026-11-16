@@ -5,6 +5,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <ctype.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <errno.h>
@@ -34,5 +35,10 @@ void check_zombies(void);
 void print_jobs(void);
 int run_single_command(char* cmd);
 void handle_if_block(char* cmdline);
+int set_variable(const char* name, const char* value);
+char* get_variable(const char* name);
+void print_variables(void);
+int handle_assignment(const char* str);
+void expand_variables(char** arglist);
 
 #endif // SHELL_H
