@@ -146,3 +146,54 @@ int handle_builtin(char** arglist) {
 
     return 0;
 }
+
+// Built-in command names for Tab completion
+static char* builtin_names[] = {
+    "cd",
+    "exit",
+    "help",
+    "history",
+    "jobs",
+    NULL
+};
+
+// Generator function for command completion
+static char* command_generator(const char* text, int state) {
+    static int list_index, len;
+    char* name;
+
+    if (!state) {
+        list_index = 0;
+        len = strlen(text);
+    }
+
+    while ((name = builtin_names[list_index++])) {
+        if (strncmp(name, text, len) == 0) {
+            return strdup(name);
+        }
+    }
+
+    return NULL;
+}
+
+// Custom completion handler
+static char** shell_completion(const char* text, int start, int end) {
+    (void)end;
+    rl_attempted_completion_over = 0;
+
+    // At start of line, complete command names
+    if (start == 0) {
+        char** matches = rl_completion_matches(text, command_generator);
+        if (matches != NULL) {
+            return matches;
+        }
+    }
+
+    // Default: filename completion
+    return NULL;
+}
+
+void init_readline(void) {
+    rl_bind_key('\t', rl_complete);
+    rl_attempted_completion_function = shell_completion;
+}

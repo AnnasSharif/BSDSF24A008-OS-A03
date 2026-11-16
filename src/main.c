@@ -4,7 +4,9 @@ int main() {
     char* cmdline;
     char** arglist;
 
-    while ((cmdline = read_cmd(PROMPT, stdin)) != NULL) {
+    init_readline();
+
+    while ((cmdline = readline(PROMPT)) != NULL) {
         // Skip empty input
         if (cmdline[0] == '\0') {
             free(cmdline);
@@ -25,7 +27,8 @@ int main() {
             cmdline = strdup(past_cmd);
         }
 
-        // Add to history
+        // Add to history (GNU Readline + custom storage)
+        add_history(cmdline);
         add_to_history(cmdline);
 
         if ((arglist = tokenize(cmdline)) != NULL) {

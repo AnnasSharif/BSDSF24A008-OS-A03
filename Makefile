@@ -1,6 +1,6 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -Iinclude
-LDFLAGS =
+LDFLAGS = -lreadline
 
 SRCDIR = src
 OBJDIR = obj
